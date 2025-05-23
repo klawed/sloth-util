@@ -1,27 +1,53 @@
 # Sloth Util
 
-**AWS Lambda utilities for microservices** - A collection of reusable Lambda functions designed to provide common functionality across multiple applications.
+**Cloud-Agnostic AWS Lambda utilities for microservices** - A collection of reusable Lambda functions designed to provide common functionality across multiple applications using external services and Cloudflare's free tier.
+
+## 🚀 Quick Start
+
+**1. Run the setup script:**
+```bash
+go run scripts/setup.go
+```
+
+**2. Start local services:**
+```bash
+docker-compose up -d
+```
+
+**3. Build and test:**
+```bash
+cd packages/functions
+mvn clean install
+```
+
+**4. Deploy to development:**
+```bash
+npx sst dev
+```
 
 ## Overview
 
-Sloth Util provides a suite of serverless utility functions deployed as AWS Lambda functions using Spring Boot Java. The functions are designed to be lightweight, reusable, and easily integrated into your existing microservices architecture.
+Sloth Util provides a suite of serverless utility functions deployed as AWS Lambda functions using Spring Boot Java. The functions are designed to be lightweight, reusable, and easily integrated into your existing microservices architecture. 
+
+**✅ Now focusing exclusively on cloud-agnostic architecture** - uses external PostgreSQL, Redis, and Cloudflare's free tier for optimal cost efficiency and vendor independence.
 
 ### Current Features
 
 - **Random Quote Generator**: Leverages AWS Bedrock LLM to generate inspirational, motivational, or contextual quotes on demand
+- **JWT Authentication Service**: Custom JWT-based authentication with PostgreSQL user management
+- **JWKS Service**: JSON Web Key Set endpoint for public key distribution and JWT verification
+- **Common Utilities**: Shared models, exception handling, and response utilities
 
 ### Planned Features
 
-- Authentication utilities
 - Data transformation functions
-- Notification services
+- Notification services  
 - File processing utilities
+- Multi-region deployment support
 
 ## Architecture
 
-This project supports two deployment architectures to accommodate different organizational needs and requirements:
-
-### Architecture 1: AWS-Native (Recommended)
+This project uses a **cloud-agnostic architecture** to avoid vendor lock-in while leveraging AWS Lambda for compute and external services for data storage.
 
 ```mermaid
 graph TB
@@ -31,71 +57,12 @@ graph TB
         C[Other Services]
     end
     
-    subgraph "AWS Infrastructure"
-        subgraph "API Gateway"
-            AG[API Gateway<br/>+ AWS Cognito Auth]
-        end
-        
-        subgraph "Compute"
-            L1[Quote Generator<br/>Lambda Function]
-            L2[Future Lambda<br/>Functions]
-        end
-        
-        subgraph "AI/ML"
-            BR[AWS Bedrock<br/>LLM Service]
-        end
-        
-        subgraph "Storage"
-            DDB[DynamoDB<br/>Quote Cache]
-            S3[S3<br/>Configuration]
-        end
-        
-        subgraph "Monitoring"
-            CW[CloudWatch<br/>Logs & Metrics]
-            XR[X-Ray<br/>Tracing]
-        end
-    end
-    
-    A --> AG
-    B --> AG
-    C --> AG
-    AG --> L1
-    AG --> L2
-    L1 --> BR
-    L1 --> DDB
-    L1 --> S3
-    L1 --> CW
-    L1 --> XR
-    
-    style AG fill:#ff9900
-    style L1 fill:#ff9900
-    style BR fill:#ff9900
-    style DDB fill:#ff9900
-```
-
-**Benefits:**
-- Fully managed authentication via AWS Cognito
-- Seamless integration with AWS services
-- Built-in monitoring and observability
-- Cost-effective scaling
-- Minimal operational overhead
-
-### Architecture 2: Cloud-Agnostic with Custom JWT (Still uses AWS Bedrock)
-
-```mermaid
-graph TB
-    subgraph "Client Applications"
-        A[Mobile App]
-        B[Web App]
-        C[Other Services]
-    end
-    
-    subgraph "Load Balancer"
-        LB[Application Load Balancer<br/>or CloudFlare]
+    subgraph "Cloudflare (Free Tier)"
+        CF[Cloudflare<br/>CDN + Load Balancer<br/>SSL/TLS + DDoS Protection]
     end
     
     subgraph "Authentication Layer"
-        AUTH[Custom JWT Service<br/>Lambda Function]
+        AUTH[JWT Auth Service<br/>Lambda Function]
         JWKS[JWKS Endpoint<br/>Lambda Function]
     end
     
@@ -108,19 +75,19 @@ graph TB
         BR[AWS Bedrock<br/>LLM Service]
     end
     
-    subgraph "Storage"
-        DB[(External Database<br/>PostgreSQL/MySQL)]
-        CACHE[(Redis Cache)]
+    subgraph "External Storage"
+        DB[(External PostgreSQL<br/>Managed Database)]
+        CACHE[(External Redis<br/>Managed Cache)]
     end
     
     subgraph "Monitoring"
         MON[Custom Monitoring<br/>Prometheus/Grafana]
     end
     
-    A --> LB
-    B --> LB
-    C --> LB
-    LB --> AUTH
+    A --> CF
+    B --> CF
+    C --> CF
+    CF --> AUTH
     AUTH --> JWKS
     AUTH --> L1
     AUTH --> L2
@@ -133,80 +100,52 @@ graph TB
     style L1 fill:#4CAF50
     style BR fill:#ff9900
     style DB fill:#9C27B0
+    style CF fill:#f39c12
 ```
 
-**Benefits:**
-- Avoids AWS networking services (API Gateway, VPC, etc.)
-- Custom authentication flow control
-- Still leverages AWS Bedrock for AI capabilities
-- Flexible load balancing options
-- Full control over security implementation
-- Can use external databases and caching
+### Architecture Benefits
+
+✅ **Cost Effective**: Uses Cloudflare free tier + external databases  
+✅ **Scalable**: Lambda functions scale automatically  
+✅ **Maintainable**: Clean separation of concerns  
+✅ **Testable**: Comprehensive testing setup with TestContainers  
+✅ **Portable**: Not locked into AWS-specific services  
+✅ **Secure**: Custom JWT implementation with full control
 
 ## Technology Stack
 
-- **Runtime**: Java 17+ with Spring Boot 3.x
-- **Build Tool**: Maven
+- **Runtime**: Java 17+ with Spring Boot 3.2
+- **Build Tool**: Maven 3.8+
 - **Deployment**: SST (Serverless Stack) v3
-- **Infrastructure**: AWS Lambda
+- **Infrastructure**: AWS Lambda with Function URLs
 - **AI/ML**: AWS Bedrock (Claude/Titan models)
-- **Database**: DynamoDB (AWS) / PostgreSQL (Cloud-agnostic)
-- **Authentication**: AWS Cognito / Custom JWT
+- **Database**: External PostgreSQL (cloud-agnostic)
+- **Cache**: External Redis (cloud-agnostic)
+- **Authentication**: Custom JWT implementation
+- **CDN/Load Balancer**: Cloudflare (free tier)
+- **Testing**: JUnit 5 + TestContainers
 
 ## Cost Analysis
 
-### Traffic Scenarios
-
-| Scenario | Requests/Month | Concurrent Users | Peak RPS |
-|----------|----------------|------------------|----------|
-| **Low** | 100K | 10-50 | 5 |
-| **Medium** | 1M | 100-500 | 50 |
-| **High** | 10M | 1K-5K | 500 |
-
-### AWS-Native Architecture Costs
+### Cloud-Agnostic Architecture Costs (Monthly)
 
 | Component | Low Traffic | Medium Traffic | High Traffic |
 |-----------|-------------|----------------|--------------|
 | **Lambda Invocations** | $0.20 | $2.00 | $20.00 |
 | **Lambda Duration** (1GB, 500ms avg) | $0.83 | $8.33 | $83.33 |
-| **API Gateway** | $0.35 | $3.50 | $35.00 |
-| **AWS Cognito** | $0.00 | $5.50 | $55.00 |
-| **AWS Bedrock** (Claude Instant) | $15.00 | $150.00 | $1,500.00 |
-| **DynamoDB** (On-Demand) | $2.50 | $12.50 | $62.50 |
-| **S3** (Config storage) | $0.25 | $0.50 | $2.50 |
-| **CloudWatch Logs** | $0.50 | $2.50 | $12.50 |
-| **X-Ray Tracing** | $0.50 | $5.00 | $50.00 |
-| **Data Transfer** | $0.90 | $4.50 | $22.50 |
-| **Total Monthly Cost** | **$21.03** | **$194.33** | **$1,843.33** |
-
-### Cloud-Agnostic Architecture Costs
-
-| Component | Low Traffic | Medium Traffic | High Traffic |
-|-----------|-------------|----------------|--------------|
-| **Lambda Invocations** | $0.20 | $2.00 | $20.00 |
-| **Lambda Duration** (1GB, 500ms avg) | $0.83 | $8.33 | $83.33 |
-| **Application Load Balancer** | $16.20 | $16.20 | $16.20 |
 | **AWS Bedrock** (Claude Instant) | $15.00 | $150.00 | $1,500.00 |
 | **External PostgreSQL** (managed) | $25.00 | $100.00 | $400.00 |
-| **Redis Cache** (managed) | $15.00 | $60.00 | $240.00 |
-| **CloudFlare Pro** (optional) | $20.00 | $20.00 | $20.00 |
+| **External Redis** (managed) | $15.00 | $60.00 | $240.00 |
+| **Cloudflare Free** | $0.00 | $0.00 | $0.00 |
 | **Monitoring Stack** | $0.00 | $25.00 | $100.00 |
 | **Data Transfer** | $0.90 | $5.40 | $27.00 |
-| **Total Monthly Cost** | **$93.13** | **$386.93** | **$2,406.53** |
+| **Total Monthly Cost** | **$56.93** | **$350.73** | **$2,370.33** |
 
-### Cost Comparison Summary
-
-| Traffic Level | AWS-Native | Cloud-Agnostic | Difference |
-|---------------|------------|----------------|------------|
-| **Low** | $21.03 | $93.13 | +$72.10 (+343%) |
-| **Medium** | $194.33 | $386.93 | +$192.60 (+99%) |
-| **High** | $1,843.33 | $2,406.53 | +$563.20 (+31%) |
-
-**Key Insights:**
-- AWS-Native is significantly cheaper at low traffic volumes
-- Cost difference decreases as traffic increases
-- Cloud-agnostic provides more control but at higher base cost
-- Both architectures scale cost-effectively with traffic
+**Key Benefits:**
+- No API Gateway costs (uses Function URLs)
+- No VPC or networking charges
+- Cloudflare free tier includes CDN, SSL, and basic DDoS protection
+- External services provide more flexibility and often better pricing
 
 ## Local Development Environment
 
@@ -222,20 +161,26 @@ graph TB
 ### Local Setup
 
 ```bash
-# Clone and setup project
+# 1. Clone repository
 git clone https://github.com/klawed/sloth-util.git
 cd sloth-util
 
-# Run the setup script to create directory structure
+# 2. Setup project structure
 go run scripts/setup.go
 
-# Install dependencies
+# 3. Install dependencies
 npm install
-mvn clean install
+cd packages/functions && mvn clean install && cd ../..
 
-# Start local development environment
-docker-compose up -d  # Starts local DynamoDB, Redis, PostgreSQL
-npx sst dev          # Starts SST development mode
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# 5. Start local development services
+docker-compose up -d
+
+# 6. Start SST development mode
+npx sst dev
 ```
 
 ### Local Development Stack
@@ -243,7 +188,6 @@ npx sst dev          # Starts SST development mode
 ```yaml
 # docker-compose.yml services
 services:
-  - DynamoDB Local (port 8000)
   - PostgreSQL (port 5432)
   - Redis (port 6379)
   - LocalStack (AWS services simulation)
@@ -262,11 +206,12 @@ services:
 ```bash
 # .env.local (for local development)
 STAGE=local
+ARCHITECTURE_TYPE=cloud-agnostic
 AWS_REGION=us-east-1
-DYNAMODB_ENDPOINT=http://localhost:8000
-POSTGRES_URL=postgresql://localhost:5432/slothutil
+DATABASE_URL=postgresql://localhost:5432/slothutil
 REDIS_URL=redis://localhost:6379
 BEDROCK_MODEL_ID=anthropic.claude-instant-v1
+JWT_SECRET=your-jwt-secret-key-min-32-chars
 LOG_LEVEL=DEBUG
 ```
 
@@ -276,41 +221,11 @@ LOG_LEVEL=DEBUG
 
 The project uses GitHub Actions for continuous integration and deployment:
 
-```yaml
-# .github/workflows/ci-cd.yml
-name: CI/CD Pipeline
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - Unit Tests (Maven)
-      - Integration Tests (TestContainers)
-      - Security Scans (Snyk)
-      - Code Quality (SonarCloud)
-  
-  deploy-dev:
-    needs: test
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    steps:
-      - Deploy to Development
-      - Run E2E Tests
-  
-  deploy-prod:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - Deploy to Production
-      - Run Smoke Tests
-      - Update Documentation
-```
+- **Automated Testing**: Unit tests, integration tests, security scans
+- **Quality Checks**: SonarCloud code quality analysis
+- **Development Deployment**: Auto-deploy on `develop` branch
+- **Production Deployment**: Auto-deploy on `main` branch with approvals
+- **Security**: Snyk vulnerability scanning
 
 ### Deployment Stages
 
@@ -322,20 +237,23 @@ jobs:
 
 2. **Production** (`main` branch)
    - Automatic deployment on push
-   - Blue/green deployment strategy
-   - Rollback capabilities
    - Comprehensive monitoring
+   - Rollback capabilities
 
 ### Required GitHub Secrets
 
 ```bash
-AWS_ACCESS_KEY_ID          # AWS deployment credentials
-AWS_SECRET_ACCESS_KEY      # AWS deployment credentials
-BEDROCK_ROLE_ARN          # IAM role for Bedrock access
-SONAR_TOKEN               # SonarCloud integration
-SNYK_TOKEN                # Security scanning
-DATABASE_PASSWORD         # For cloud-agnostic deployments
-REDIS_PASSWORD            # For cloud-agnostic deployments
+AWS_ACCESS_KEY_ID           # AWS deployment credentials
+AWS_SECRET_ACCESS_KEY       # AWS deployment credentials
+DEV_DATABASE_URL           # Development PostgreSQL connection
+DEV_REDIS_URL              # Development Redis connection
+DEV_JWT_SECRET             # Development JWT secret
+PROD_DATABASE_URL          # Production PostgreSQL connection
+PROD_REDIS_URL             # Production Redis connection
+PROD_JWT_SECRET            # Production JWT secret
+BEDROCK_MODEL_ID           # AWS Bedrock model identifier
+SONAR_TOKEN                # SonarCloud integration
+SNYK_TOKEN                 # Security scanning
 ```
 
 ### Testing Strategy
@@ -357,63 +275,34 @@ mvn test -P performance-tests
 npm run test:security
 ```
 
-## Getting Started
-
-### Quick Setup
-
-```bash
-# 1. Clone repository
-git clone https://github.com/klawed/sloth-util.git
-cd sloth-util
-
-# 2. Setup project structure
-go run scripts/setup.go
-
-# 3. Install dependencies
-npm install
-mvn clean install
-
-# 4. Configure environment
-cp .env.example .env
-# Edit .env with your configuration
-
-# 5. Start local development
-docker-compose up -d
-npx sst dev
-
-# 6. Deploy to development
-npx sst deploy --stage dev
-```
-
-### Project Structure
+## Project Structure
 
 ```
 sloth-util/
-├── sst.config.ts              # SST configuration
-├── docker-compose.yml         # Local development services
+├── sst.config.ts                    # SST configuration (cloud-agnostic)
+├── docker-compose.yml               # Local development services
 ├── packages/
-│   ├── functions/             # Lambda function code
-│   │   ├── quote-generator/   # Quote generator service
-│   │   │   ├── src/main/java/com/slothutil/quotes/
-│   │   │   │   ├── QuoteHandler.java
-│   │   │   │   ├── config/
-│   │   │   │   ├── service/
-│   │   │   │   └── model/
-│   │   │   ├── src/test/java/
-│   │   │   └── pom.xml
-│   │   ├── auth-service/      # JWT authentication service
-│   │   └── common/            # Shared utilities
-│   ├── core/                  # Core business logic
-│   └── infrastructure/        # SST stack definitions
+│   ├── functions/                   # Lambda function code
+│   │   ├── quote-generator/         # Quote generator service
+│   │   │   └── src/main/java/com/slothutil/quotes/
+│   │   │       ├── QuoteHandler.java
+│   │   │       ├── config/
+│   │   │       ├── service/
+│   │   │       └── model/
+│   │   ├── auth-service/            # JWT authentication service
+│   │   ├── jwks-service/            # JWKS endpoint service
+│   │   └── common/                  # Shared utilities
+│   ├── core/                        # Core business logic
+│   └── infrastructure/              # SST stack definitions
 ├── scripts/
-│   ├── setup.go              # Project setup script
-│   ├── deploy.sh             # Deployment scripts
-│   └── test.sh               # Testing scripts
+│   ├── setup.go                     # Project setup script
+│   ├── deploy.sh                    # Deployment scripts
+│   └── test.sh                      # Testing scripts
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml         # GitHub Actions pipeline
-├── docs/                     # Additional documentation
-└── tools/                    # Development tools and configs
+│       └── ci-cd.yml                # GitHub Actions pipeline
+├── docs/                            # Additional documentation
+└── tools/                           # Development tools and configs
 ```
 
 ## API Endpoints
@@ -446,29 +335,59 @@ Generate a random inspirational quote using AI.
 }
 ```
 
+### Authentication
+
+**POST** `/auth/login` - User authentication  
+**POST** `/auth/refresh` - Token refresh  
+**GET** `/.well-known/jwks.json` - JWKS public keys
+
 ## Monitoring and Observability
 
-### AWS-Native Architecture
-- CloudWatch Logs and Metrics
-- X-Ray distributed tracing
-- Custom CloudWatch dashboards
-- AWS Config for compliance
-
-### Cloud-Agnostic Architecture
+### Cloud-Agnostic Monitoring
 - Custom Prometheus metrics
 - Grafana dashboards
 - Structured logging with JSON format
 - Custom health check endpoints
 - Application performance monitoring
+- CloudWatch logs (for Lambda functions)
 
 ## Security
 
-- JWT-based authentication (custom or AWS Cognito)
-- Rate limiting per client/IP
+- JWT-based authentication with custom implementation
+- Rate limiting per client/IP (via Cloudflare)
 - Input validation and sanitization
-- Secrets managed securely (AWS Parameter Store or external)
+- Secrets managed securely via environment variables
 - Regular security dependency updates
 - OWASP compliance testing
+- SSL/TLS termination via Cloudflare
+
+## Getting Started
+
+### Quick Setup
+
+```bash
+# 1. Clone repository
+git clone https://github.com/klawed/sloth-util.git
+cd sloth-util
+
+# 2. Setup project structure
+go run scripts/setup.go
+
+# 3. Install dependencies
+npm install
+cd packages/functions && mvn clean install && cd ../..
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# 5. Start local development
+docker-compose up -d
+npx sst dev
+
+# 6. Deploy to development
+npx sst deploy --stage dev
+```
 
 ## Contributing
 
@@ -486,14 +405,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-- [x] Project setup and architecture design
-- [ ] Quote Generator Lambda (v1.0)
+- [x] Project setup and cloud-agnostic architecture design
+- [x] SpringBoot project structure with Go setup script
+- [x] Complete Maven configuration with parent/child modules
+- [x] Docker Compose for local development
+- [x] CI/CD pipeline implementation
+- [ ] Quote Generator Lambda implementation
 - [ ] Custom JWT authentication service
-- [ ] CI/CD pipeline implementation
+- [ ] JWKS endpoint implementation
 - [ ] Monitoring and alerting setup
 - [ ] Performance optimization
 - [ ] Additional utility functions
 - [ ] Multi-region deployment support
+- [ ] Cloudflare integration and configuration
 
 ## Support
 
@@ -504,4 +428,4 @@ For support and questions:
 
 ---
 
-**Note**: This project is designed to be modular and extensible. Each Lambda function is independently deployable and can be used across different applications in your ecosystem.
+**Note**: This project uses a **cloud-agnostic architecture** designed to be modular and extensible. Each Lambda function is independently deployable and can be used across different applications in your ecosystem while avoiding vendor lock-in.
