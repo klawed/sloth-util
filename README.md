@@ -80,7 +80,7 @@ graph TB
 - Cost-effective scaling
 - Minimal operational overhead
 
-### Architecture 2: Cloud-Agnostic with Custom JWT
+### Architecture 2: Cloud-Agnostic with Custom JWT (Still uses AWS Bedrock)
 
 ```mermaid
 graph TB
@@ -91,7 +91,7 @@ graph TB
     end
     
     subgraph "Load Balancer"
-        LB[Application Load Balancer]
+        LB[Application Load Balancer<br/>or CloudFlare]
     end
     
     subgraph "Authentication Layer"
@@ -104,12 +104,12 @@ graph TB
         L2[Future Lambda<br/>Functions]
     end
     
-    subgraph "External AI"
-        EXT[External LLM API<br/>OpenAI/Anthropic/etc]
+    subgraph "AWS AI Service"
+        BR[AWS Bedrock<br/>LLM Service]
     end
     
     subgraph "Storage"
-        DB[(Database<br/>PostgreSQL/MySQL)]
+        DB[(External Database<br/>PostgreSQL/MySQL)]
         CACHE[(Redis Cache)]
     end
     
@@ -124,30 +124,31 @@ graph TB
     AUTH --> JWKS
     AUTH --> L1
     AUTH --> L2
-    L1 --> EXT
+    L1 --> BR
     L1 --> DB
     L1 --> CACHE
     L1 --> MON
     
     style AUTH fill:#4CAF50
     style L1 fill:#4CAF50
-    style EXT fill:#2196F3
+    style BR fill:#ff9900
     style DB fill:#9C27B0
 ```
 
 **Benefits:**
-- Cloud provider independence
+- Avoids AWS networking services (API Gateway, VPC, etc.)
 - Custom authentication flow control
-- Flexibility in LLM provider selection
-- Portable across different environments
+- Still leverages AWS Bedrock for AI capabilities
+- Flexible load balancing options
 - Full control over security implementation
+- Can use external databases and caching
 
 ## Technology Stack
 
 - **Runtime**: Java 17+ with Spring Boot 3.x
 - **Build Tool**: Maven
 - **Deployment**: SST (Serverless Stack) v3
-- **Infrastructure**: AWS Lambda, API Gateway
+- **Infrastructure**: AWS Lambda
 - **AI/ML**: AWS Bedrock (Claude/Titan models)
 - **Database**: DynamoDB (AWS) / PostgreSQL (Cloud-agnostic)
 - **Authentication**: AWS Cognito / Custom JWT
@@ -169,80 +170,250 @@ graph TB
 | **Lambda Invocations** | $0.20 | $2.00 | $20.00 |
 | **Lambda Duration** (1GB, 500ms avg) | $0.83 | $8.33 | $83.33 |
 | **API Gateway** | $0.35 | $3.50 | $35.00 |
+| **AWS Cognito** | $0.00 | $5.50 | $55.00 |
 | **AWS Bedrock** (Claude Instant) | $15.00 | $150.00 | $1,500.00 |
 | **DynamoDB** (On-Demand) | $2.50 | $12.50 | $62.50 |
+| **S3** (Config storage) | $0.25 | $0.50 | $2.50 |
 | **CloudWatch Logs** | $0.50 | $2.50 | $12.50 |
+| **X-Ray Tracing** | $0.50 | $5.00 | $50.00 |
 | **Data Transfer** | $0.90 | $4.50 | $22.50 |
-| **Total Monthly Cost** | **$19.28** | **$182.33** | **$1,735.83** |
+| **Total Monthly Cost** | **$21.03** | **$194.33** | **$1,843.33** |
 
 ### Cloud-Agnostic Architecture Costs
 
 | Component | Low Traffic | Medium Traffic | High Traffic |
 |-----------|-------------|----------------|--------------|
-| **Lambda Functions** | $1.03 | $10.33 | $103.33 |
+| **Lambda Invocations** | $0.20 | $2.00 | $20.00 |
+| **Lambda Duration** (1GB, 500ms avg) | $0.83 | $8.33 | $83.33 |
 | **Application Load Balancer** | $16.20 | $16.20 | $16.20 |
-| **External LLM API** (OpenAI GPT-3.5) | $20.00 | $200.00 | $2,000.00 |
-| **PostgreSQL RDS** (t3.micro/medium/large) | $12.60 | $67.32 | $134.64 |
-| **ElastiCache Redis** | $12.50 | $50.40 | $201.60 |
-| **Data Transfer** | $0.90 | $5.40 | $27.00 |
+| **AWS Bedrock** (Claude Instant) | $15.00 | $150.00 | $1,500.00 |
+| **External PostgreSQL** (managed) | $25.00 | $100.00 | $400.00 |
+| **Redis Cache** (managed) | $15.00 | $60.00 | $240.00 |
+| **CloudFlare Pro** (optional) | $20.00 | $20.00 | $20.00 |
 | **Monitoring Stack** | $0.00 | $25.00 | $100.00 |
-| **Total Monthly Cost** | **$63.23** | **$374.65** | **$2,582.77** |
+| **Data Transfer** | $0.90 | $5.40 | $27.00 |
+| **Total Monthly Cost** | **$93.13** | **$386.93** | **$2,406.53** |
 
-### Cost Optimization Strategies
+### Cost Comparison Summary
 
-**AWS-Native:**
-- Use provisioned concurrency for predictable workloads
-- Implement intelligent caching with DynamoDB TTL
-- Use Bedrock batch processing for bulk operations
-- Enable CloudWatch log retention policies
+| Traffic Level | AWS-Native | Cloud-Agnostic | Difference |
+|---------------|------------|----------------|------------|
+| **Low** | $21.03 | $93.13 | +$72.10 (+343%) |
+| **Medium** | $194.33 | $386.93 | +$192.60 (+99%) |
+| **High** | $1,843.33 | $2,406.53 | +$563.20 (+31%) |
 
-**Cloud-Agnostic:**
-- Implement aggressive caching strategies
-- Use connection pooling for database connections
-- Consider spot instances for non-critical workloads
-- Optimize LLM API usage with prompt caching
+**Key Insights:**
+- AWS-Native is significantly cheaper at low traffic volumes
+- Cost difference decreases as traffic increases
+- Cloud-agnostic provides more control but at higher base cost
+- Both architectures scale cost-effectively with traffic
 
-## Getting Started
+## Local Development Environment
 
 ### Prerequisites
 
-- Node.js 18+ (for SST)
-- Java 17+
-- Maven 3.8+
-- AWS CLI configured (for AWS deployment)
+- **Java 17+** (Amazon Corretto recommended)
+- **Maven 3.8+**
+- **Node.js 18+** (for SST)
+- **Docker & Docker Compose** (for local services)
+- **AWS CLI** configured with appropriate permissions
+- **Go 1.19+** (for setup scripts)
 
-### Installation
+### Local Setup
 
 ```bash
-# Clone the repository
+# Clone and setup project
 git clone https://github.com/klawed/sloth-util.git
 cd sloth-util
 
-# Install SST dependencies
+# Run the setup script to create directory structure
+go run scripts/setup.go
+
+# Install dependencies
 npm install
+mvn clean install
 
-# Build Java functions
-mvn clean package
+# Start local development environment
+docker-compose up -d  # Starts local DynamoDB, Redis, PostgreSQL
+npx sst dev          # Starts SST development mode
+```
 
-# Deploy to development environment
+### Local Development Stack
+
+```yaml
+# docker-compose.yml services
+services:
+  - DynamoDB Local (port 8000)
+  - PostgreSQL (port 5432)
+  - Redis (port 6379)
+  - LocalStack (AWS services simulation)
+```
+
+### Development Workflow
+
+1. **Code Changes**: Edit Java functions in `packages/functions/`
+2. **Hot Reload**: SST automatically rebuilds and redeploys on changes
+3. **Local Testing**: Use local endpoints provided by `sst dev`
+4. **Integration Tests**: Run against local Docker services
+5. **Debug**: Attach debugger to running Lambda functions
+
+### Environment Configuration
+
+```bash
+# .env.local (for local development)
+STAGE=local
+AWS_REGION=us-east-1
+DYNAMODB_ENDPOINT=http://localhost:8000
+POSTGRES_URL=postgresql://localhost:5432/slothutil
+REDIS_URL=redis://localhost:6379
+BEDROCK_MODEL_ID=anthropic.claude-instant-v1
+LOG_LEVEL=DEBUG
+```
+
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+```yaml
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - Unit Tests (Maven)
+      - Integration Tests (TestContainers)
+      - Security Scans (Snyk)
+      - Code Quality (SonarCloud)
+  
+  deploy-dev:
+    needs: test
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - Deploy to Development
+      - Run E2E Tests
+  
+  deploy-prod:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - Deploy to Production
+      - Run Smoke Tests
+      - Update Documentation
+```
+
+### Deployment Stages
+
+1. **Development** (`develop` branch)
+   - Automatic deployment on push
+   - Full test suite execution
+   - Integration with external services
+   - Performance baseline testing
+
+2. **Production** (`main` branch)
+   - Automatic deployment on push
+   - Blue/green deployment strategy
+   - Rollback capabilities
+   - Comprehensive monitoring
+
+### Required GitHub Secrets
+
+```bash
+AWS_ACCESS_KEY_ID          # AWS deployment credentials
+AWS_SECRET_ACCESS_KEY      # AWS deployment credentials
+BEDROCK_ROLE_ARN          # IAM role for Bedrock access
+SONAR_TOKEN               # SonarCloud integration
+SNYK_TOKEN                # Security scanning
+DATABASE_PASSWORD         # For cloud-agnostic deployments
+REDIS_PASSWORD            # For cloud-agnostic deployments
+```
+
+### Testing Strategy
+
+```bash
+# Unit Tests
+mvn test
+
+# Integration Tests (with TestContainers)
+mvn verify -P integration-tests
+
+# End-to-End Tests
+npm run test:e2e
+
+# Performance Tests
+mvn test -P performance-tests
+
+# Security Tests
+npm run test:security
+```
+
+## Getting Started
+
+### Quick Setup
+
+```bash
+# 1. Clone repository
+git clone https://github.com/klawed/sloth-util.git
+cd sloth-util
+
+# 2. Setup project structure
+go run scripts/setup.go
+
+# 3. Install dependencies
+npm install
+mvn clean install
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# 5. Start local development
+docker-compose up -d
+npx sst dev
+
+# 6. Deploy to development
 npx sst deploy --stage dev
 ```
 
-### Configuration
+### Project Structure
 
-Create a `.env` file in the project root:
-
-```env
-# AWS Configuration (for AWS-native architecture)
-AWS_REGION=us-east-1
-BEDROCK_MODEL_ID=anthropic.claude-instant-v1
-COGNITO_USER_POOL_ID=your-user-pool-id
-
-# Cloud-agnostic configuration
-EXTERNAL_LLM_API_KEY=your-api-key
-DATABASE_URL=your-database-url
-REDIS_URL=your-redis-url
-JWT_SECRET=your-jwt-secret
+```
+sloth-util/
+├── sst.config.ts              # SST configuration
+├── docker-compose.yml         # Local development services
+├── packages/
+│   ├── functions/             # Lambda function code
+│   │   ├── quote-generator/   # Quote generator service
+│   │   │   ├── src/main/java/com/slothutil/quotes/
+│   │   │   │   ├── QuoteHandler.java
+│   │   │   │   ├── config/
+│   │   │   │   ├── service/
+│   │   │   │   └── model/
+│   │   │   ├── src/test/java/
+│   │   │   └── pom.xml
+│   │   ├── auth-service/      # JWT authentication service
+│   │   └── common/            # Shared utilities
+│   ├── core/                  # Core business logic
+│   └── infrastructure/        # SST stack definitions
+├── scripts/
+│   ├── setup.go              # Project setup script
+│   ├── deploy.sh             # Deployment scripts
+│   └── test.sh               # Testing scripts
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml         # GitHub Actions pipeline
+├── docs/                     # Additional documentation
+└── tools/                    # Development tools and configs
 ```
 
 ## API Endpoints
@@ -258,71 +429,22 @@ Generate a random inspirational quote using AI.
 - `length` (optional): Preferred length (short, medium, long)
 - `cache` (optional): Use cached quotes if available (default: true)
 
+**Headers:**
+- `Authorization: Bearer <jwt-token>` (for custom JWT auth)
+- `Content-Type: application/json`
+
 **Response:**
 ```json
 {
   "quote": "The best way to predict the future is to create it.",
   "author": "AI Generated",
   "category": "motivational",
+  "length": "short",
   "timestamp": "2025-05-23T19:18:03Z",
-  "cached": false
+  "cached": false,
+  "requestId": "req-123-456-789"
 }
 ```
-
-## Development
-
-### Project Structure
-
-```
-sloth-util/
-├── sst.config.ts              # SST configuration
-├── packages/
-│   ├── functions/             # Lambda function code
-│   │   ├── quote-generator/
-│   │   │   ├── src/main/java/
-│   │   │   └── pom.xml
-│   │   └── common/            # Shared utilities
-│   ├── web/                   # Optional web interface
-│   └── core/                  # Core business logic
-├── stacks/                    # SST infrastructure stacks
-├── scripts/                   # Deployment and utility scripts
-└── docs/                      # Additional documentation
-```
-
-### Testing
-
-```bash
-# Run unit tests
-mvn test
-
-# Run integration tests
-mvn verify
-
-# Test local deployment
-npx sst dev
-```
-
-## Deployment
-
-### Development Environment
-
-```bash
-npx sst deploy --stage dev
-```
-
-### Production Environment
-
-```bash
-npx sst deploy --stage prod
-```
-
-### Environment-Specific Configuration
-
-SST supports environment-specific configurations through stages. Each stage can have different:
-- Infrastructure sizing
-- Security policies
-- Database configurations
-- Monitoring levels
 
 ## Monitoring and Observability
 
@@ -335,24 +457,28 @@ SST supports environment-specific configurations through stages. Each stage can 
 ### Cloud-Agnostic Architecture
 - Custom Prometheus metrics
 - Grafana dashboards
-- Structured logging with ELK stack
+- Structured logging with JSON format
 - Custom health check endpoints
+- Application performance monitoring
+
+## Security
+
+- JWT-based authentication (custom or AWS Cognito)
+- Rate limiting per client/IP
+- Input validation and sanitization
+- Secrets managed securely (AWS Parameter Store or external)
+- Regular security dependency updates
+- OWASP compliance testing
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Security
-
-- All API endpoints require authentication
-- Rate limiting implemented per client
-- Input validation and sanitization
-- Secrets managed through AWS Systems Manager Parameter Store
-- Regular security dependency updates
+3. Follow the coding standards (Checkstyle + SpotBugs)
+4. Write tests for new functionality
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## License
 
@@ -360,14 +486,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
+- [x] Project setup and architecture design
 - [ ] Quote Generator Lambda (v1.0)
-- [ ] Authentication utilities
-- [ ] Image processing functions
-- [ ] Email notification service
-- [ ] Data validation utilities
-- [ ] Rate limiting service
-- [ ] Caching utilities
-- [ ] Multi-language support
+- [ ] Custom JWT authentication service
+- [ ] CI/CD pipeline implementation
+- [ ] Monitoring and alerting setup
+- [ ] Performance optimization
+- [ ] Additional utility functions
+- [ ] Multi-region deployment support
 
 ## Support
 
