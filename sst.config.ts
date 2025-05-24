@@ -20,7 +20,7 @@ export default $config({
     const isDevelopment = stage === "development" || stage === "dev";
     
     // Architecture selection based on stage or environment variable
-    const useAwsNative = process.env.ARCHITECTURE_TYPE !== "cloud-agnostic";
+    const useAwsNative = process.env.ARCHITECTURE_TYPE !== "hybrid";
     
     // Common Lambda configuration
     const lambdaConfig = {
@@ -82,9 +82,12 @@ export default $config({
         },
       });
     } else {
-      // Cloud-agnostic: External database references (not created here)
-      storage.databaseUrl = process.env.DATABASE_URL || "postgresql://localhost:5432/slothutil";
-      storage.redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+      // Hybrid: Cloudflare D1 and KV references (not created here)
+      storage.cloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
+      storage.cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN || "";
+      storage.cloudflareKvNamespaceIdQuotes = process.env.CLOUDFLARE_KV_NAMESPACE_ID_QUOTES || "";
+      storage.cloudflareD1DatabaseId = process.env.CLOUDFLARE_D1_DATABASE_ID || "";
+      storage.cloudflareD1WorkerUrl = process.env.CLOUDFLARE_D1_WORKER_URL || "";
     }
 
     // IAM role for Lambda functions
@@ -169,15 +172,18 @@ export default $config({
           DYNAMODB_TABLE_NAME: storage.dynamodb?.name || "",
           S3_CONFIG_BUCKET: storage.s3?.bucket || "",
         } : {
-          DATABASE_URL: storage.databaseUrl,
-          REDIS_URL: storage.redisUrl,
+          CLOUDFLARE_ACCOUNT_ID: storage.cloudflareAccountId,
+          CLOUDFLARE_API_TOKEN: storage.cloudflareApiToken,
+          CLOUDFLARE_KV_NAMESPACE_ID_QUOTES: storage.cloudflareKvNamespaceIdQuotes,
+          CLOUDFLARE_D1_DATABASE_ID: storage.cloudflareD1DatabaseId,
+          CLOUDFLARE_D1_WORKER_URL: storage.cloudflareD1WorkerUrl,
         }),
-        ARCHITECTURE_TYPE: useAwsNative ? "aws-native" : "cloud-agnostic",
+        ARCHITECTURE_TYPE: useAwsNative ? "aws-native" : "hybrid",
       },
       role: lambdaRole.arn,
     });
 
-    // Authentication Lambda Function (for cloud-agnostic architecture)
+    // Authentication Lambda Function (for hybrid architecture)
     const authService = !useAwsNative ? new sst.aws.Function("AuthService", {
       handler: "com.slothutil.auth.AuthHandler::handleRequest",
       ...lambdaConfig,
@@ -186,12 +192,15 @@ export default $config({
         JWT_SECRET: process.env.JWT_SECRET || "your-secret-key-change-in-production",
         JWT_ISSUER: `sloth-util-${stage}`,
         JWT_EXPIRY: "3600", // 1 hour
-        DATABASE_URL: storage.databaseUrl,
+        CLOUDFLARE_ACCOUNT_ID: storage.cloudflareAccountId,
+        CLOUDFLARE_API_TOKEN: storage.cloudflareApiToken,
+        CLOUDFLARE_D1_DATABASE_ID: storage.cloudflareD1DatabaseId,
+        CLOUDFLARE_D1_WORKER_URL: storage.cloudflareD1WorkerUrl,
       },
       role: lambdaRole.arn,
     }) : undefined;
 
-    // JWKS Lambda Function (for cloud-agnostic architecture)
+    // JWKS Lambda Function (for hybrid architecture)
     const jwksService = !useAwsNative ? new sst.aws.Function("JWKSService", {
       handler: "com.slothutil.auth.JWKSHandler::handleRequest",
       ...lambdaConfig,
@@ -245,7 +254,7 @@ export default $config({
         generateSecret: false,
       });
     } else {
-      // Function URLs for cloud-agnostic architecture (simpler than ALB)
+      // Function URLs for hybrid architecture (simpler than ALB)
       const quoteGeneratorUrl = new aws.lambda.FunctionUrl("quote-generator-url", {
         functionName: quoteGenerator.name,
         authorizationType: "NONE",
@@ -285,7 +294,7 @@ export default $config({
 
     // Outputs
     return {
-      architecture: useAwsNative ? "aws-native" : "cloud-agnostic",
+      architecture: useAwsNative ? "aws-native" : "hybrid",
       stage: stage,
       ...(useAwsNative ? {
         apiUrl: api?.url,

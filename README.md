@@ -1,6 +1,6 @@
 # Sloth Util
 
-**Cloud-Agnostic AWS Lambda utilities for microservices** - A collection of reusable Lambda functions designed to provide common functionality across multiple applications using external services and Cloudflare's free tier.
+**Hybrid AWS Lambda utilities for microservices** - A collection of reusable Lambda functions designed to provide common functionality across multiple applications using external services and Cloudflare's free tier.
 
 ## 🚀 Quick Start
 
@@ -29,12 +29,12 @@ npx sst dev
 
 Sloth Util provides a suite of serverless utility functions deployed as AWS Lambda functions using Spring Boot Java. The functions are designed to be lightweight, reusable, and easily integrated into your existing microservices architecture.
 
-**✅ Now focusing exclusively on cloud-agnostic architecture** - uses external PostgreSQL, Redis, and Cloudflare's free tier for optimal cost efficiency and vendor independence.
+**✅ Now focusing exclusively on a Hybrid AWS + Cloudflare architecture** - uses Cloudflare D1, KV, and Cloudflare's free tier for optimal cost efficiency and vendor independence.
 
 ### Current Features
 
 - **Random Quote Generator**: Leverages AWS Bedrock LLM to generate inspirational, motivational, or contextual quotes on demand
-- **JWT Authentication Service**: Custom JWT-based authentication with PostgreSQL user management
+- **JWT Authentication Service**: Custom JWT-based authentication with Cloudflare D1 user management
 - **JWKS Service**: JSON Web Key Set endpoint for public key distribution and JWT verification
 - **Common Utilities**: Shared models, exception handling, and response utilities
 
@@ -47,7 +47,7 @@ Sloth Util provides a suite of serverless utility functions deployed as AWS Lamb
 
 ## Architecture
 
-This project uses a **cloud-agnostic architecture** to avoid vendor lock-in while leveraging AWS Lambda for compute and external services for data storage.
+This project uses a **Hybrid architecture** to leverage AWS Lambda and Bedrock for compute and AI, while utilizing Cloudflare's free/cost-effective tier for CDN, security, and data storage (D1, KV) to optimize costs and avoid lock-in to AWS data services.
 
 ```mermaid
 graph TB
@@ -76,8 +76,8 @@ graph TB
     end
     
     subgraph "External Storage"
-        DB[(External PostgreSQL<br/>Managed Database)]
-        CACHE[(External Redis<br/>Managed Cache)]
+        D1[(Cloudflare D1<br/>SQLite Database)]
+        KV[(Cloudflare KV<br/>Key-Value Cache)]
     end
     
     subgraph "Monitoring"
@@ -92,20 +92,20 @@ graph TB
     AUTH --> L1
     AUTH --> L2
     L1 --> BR
-    L1 --> DB
-    L1 --> CACHE
+    L1 --> D1
+    L1 --> KV
     L1 --> MON
     
     style AUTH fill:#4CAF50
     style L1 fill:#4CAF50
     style BR fill:#ff9900
-    style DB fill:#9C27B0
+    style D1 fill:#9C27B0
     style CF fill:#f39c12
 ```
 
 ### Architecture Benefits
 
-✅ **Cost Effective**: Uses Cloudflare free tier + external databases  
+✅ **Cost Effective**: Uses Cloudflare free tier + Cloudflare D1 and KV  
 ✅ **Scalable**: Lambda functions scale automatically  
 ✅ **Maintainable**: Clean separation of concerns  
 ✅ **Testable**: Comprehensive testing setup with TestContainers  
@@ -119,8 +119,8 @@ graph TB
 - **Deployment**: SST (Serverless Stack) v3
 - **Infrastructure**: AWS Lambda with Function URLs
 - **AI/ML**: AWS Bedrock (Claude/Titan models)
-- **Database**: External PostgreSQL (cloud-agnostic)
-- **Cache**: External Redis (cloud-agnostic)
+- **Database**: Cloudflare D1 (SQLite-based via API)
+- **Cache**: Cloudflare KV (Key-Value store via API)
 - **Authentication**: Custom JWT implementation
 - **CDN/Load Balancer**: Cloudflare (free tier)
 - **Testing**: JUnit 5 + TestContainers
@@ -142,7 +142,7 @@ graph TB
 | **Data Transfer** | $0.90 | $4.50 | $22.50 |
 | **Total Monthly Cost** | **$41.28** | **$268.33** | **$2,126.33** |
 
-### Cloud-Agnostic Architecture Costs
+### Hybrid Architecture Costs
 
 | Component | Low Traffic | Medium Traffic | High Traffic |
 |-----------|-------------|----------------|--------------|
@@ -160,20 +160,20 @@ graph TB
 
 ### Cost Comparison Summary
 
-| Traffic Level | AWS-Native | Cloud-Agnostic | Difference |
-|---------------|------------|----------------|------------|
+| Traffic Level | AWS-Native | Hybrid | Difference |
+|---------------|------------|---------|------------|
 | **Low** | $41.28 | $22.43 | -$18.85 (-46%) |
 | **Medium** | $268.33 | $194.83 | -$73.50 (-27%) |
 | **High** | $2,126.33 | $1,758.33 | -$368.00 (-17%) |
 
 **Key Insights:**
-- **Cloud-agnostic is actually cheaper** across all traffic levels
+- **Hybrid is actually cheaper** across all traffic levels
 - Cloudflare's generous free tiers (D1, KV, CDN) provide significant cost savings
 - Cost advantage increases at lower traffic volumes
 - AWS-native has higher baseline costs due to RDS/ElastiCache minimums
-- Cloud-agnostic eliminates vendor lock-in while being more cost-effective
+- Hybrid eliminates vendor lock-in while being more cost-effective
 
-**Cloud-Agnostic Benefits:**
+**Hybrid Benefits:**
 - **Lower costs** especially at low-medium traffic
 - No vendor lock-in - can switch providers easily
 - Cloudflare Pro includes enterprise-grade CDN, security, and performance
@@ -221,8 +221,6 @@ npx sst dev
 ```yaml
 # docker-compose.yml services
 services:
-  - PostgreSQL (port 5432)
-  - Redis (port 6379)
   - LocalStack (AWS services simulation)
 ```
 
@@ -239,13 +237,19 @@ services:
 ```bash
 # .env.local (for local development)
 STAGE=local
-ARCHITECTURE_TYPE=cloud-agnostic
+ARCHITECTURE_TYPE=hybrid # Changed
 AWS_REGION=us-east-1
-DATABASE_URL=postgresql://localhost:5432/slothutil
-REDIS_URL=redis://localhost:6379
 BEDROCK_MODEL_ID=anthropic.claude-instant-v1
 JWT_SECRET=your-jwt-secret-key-min-32-chars
 LOG_LEVEL=DEBUG
+
+# Cloudflare specific (replace with your actual values/secrets)
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+CLOUDFLARE_KV_NAMESPACE_ID_QUOTES=your_kv_namespace_id_for_quotes
+# For D1, you might interact via a Worker URL
+CLOUDFLARE_D1_WORKER_URL=your_d1_worker_url_if_any
+CLOUDFLARE_D1_DATABASE_ID=your_d1_database_id # if using direct API
 ```
 
 ## CI/CD Pipeline
@@ -276,17 +280,15 @@ The project uses GitHub Actions for continuous integration and deployment:
 ### Required GitHub Secrets
 
 ```bash
-AWS_ACCESS_KEY_ID           # AWS deployment credentials
-AWS_SECRET_ACCESS_KEY       # AWS deployment credentials
-DEV_DATABASE_URL           # Development PostgreSQL connection
-DEV_REDIS_URL              # Development Redis connection
-DEV_JWT_SECRET             # Development JWT secret
-PROD_DATABASE_URL          # Production PostgreSQL connection
-PROD_REDIS_URL             # Production Redis connection
-PROD_JWT_SECRET            # Production JWT secret
-BEDROCK_MODEL_ID           # AWS Bedrock model identifier
-SONAR_TOKEN                # SonarCloud integration
-SNYK_TOKEN                 # Security scanning
+AWS_ACCESS_KEY_ID             # AWS deployment credentials
+AWS_SECRET_ACCESS_KEY         # AWS deployment credentials
+DEV_DATABASE_URL              # Development Cloudflare D1 connection
+DEV_JWT_SECRET                # Development JWT secret
+PROD_DATABASE_URL             # Production Cloudflare D1 connection
+PROD_JWT_SECRET               # Production JWT secret
+BEDROCK_MODEL_ID              # AWS Bedrock model identifier
+SONAR_TOKEN                   # SonarCloud integration
+SNYK_TOKEN                    # Security scanning
 ```
 
 ### Testing Strategy
@@ -312,30 +314,30 @@ npm run test:security
 
 ```
 sloth-util/
-├── sst.config.ts                    # SST configuration (cloud-agnostic)
-├── docker-compose.yml               # Local development services
+├── sst.config.ts                     # SST configuration (hybrid)
+├── docker-compose.yml                # Local development services
 ├── packages/
-│   ├── functions/                   # Lambda function code
-│   │   ├── quote-generator/         # Quote generator service
+│   ├── functions/                    # Lambda function code
+│   │   ├── quote-generator/          # Quote generator service
 │   │   │   └── src/main/java/com/slothutil/quotes/
 │   │   │       ├── QuoteHandler.java
 │   │   │       ├── config/
 │   │   │       ├── service/
 │   │   │       └── model/
-│   │   ├── auth-service/            # JWT authentication service
-│   │   ├── jwks-service/            # JWKS endpoint service
-│   │   └── common/                  # Shared utilities
-│   ├── core/                        # Core business logic
-│   └── infrastructure/              # SST stack definitions
+│   │   ├── auth-service/             # JWT authentication service
+│   │   ├── jwks-service/             # JWKS endpoint service
+│   │   └── common/                   # Shared utilities
+│   ├── core/                         # Core business logic
+│   └── infrastructure/               # SST stack definitions
 ├── scripts/
-│   ├── setup.go                     # Project setup script
-│   ├── deploy.sh                    # Deployment scripts
-│   └── test.sh                      # Testing scripts
+│   ├── setup.go                      # Project setup script
+│   ├── deploy.sh                     # Deployment scripts
+│   └── test.sh                       # Testing scripts
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml                # GitHub Actions pipeline
-├── docs/                            # Additional documentation
-└── tools/                           # Development tools and configs
+│        └── ci-cd.yml                # GitHub Actions pipeline
+├── docs/                             # Additional documentation
+└── tools/                            # Development tools and configs
 ```
 
 ## API Endpoints
@@ -376,7 +378,7 @@ Generate a random inspirational quote using AI.
 
 ## Monitoring and Observability
 
-### Cloud-Agnostic Monitoring
+### Hybrid Monitoring
 - Custom Prometheus metrics
 - Grafana dashboards
 - Structured logging with JSON format
@@ -438,7 +440,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-- [x] Project setup and cloud-agnostic architecture design
+- [x] Project setup and Hybrid architecture design
 - [x] SpringBoot project structure with Go setup script
 - [x] Complete Maven configuration with parent/child modules
 - [x] Docker Compose for local development
@@ -461,4 +463,4 @@ For support and questions:
 
 ---
 
-**Note**: This project uses a **cloud-agnostic architecture** designed to be modular and extensible. Each Lambda function is independently deployable and can be used across different applications in your ecosystem while avoiding vendor lock-in.
+**Note**: This project uses a **Hybrid architecture** designed to be modular and extensible. Each Lambda function is independently deployable and can be used across different applications in your ecosystem while avoiding vendor lock-in.
