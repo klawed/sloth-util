@@ -127,25 +127,68 @@ graph TB
 
 ## Cost Analysis
 
-### Cloud-Agnostic Architecture Costs (Monthly)
+### Traffic Scenarios
+
+| Scenario | Requests/Month | Concurrent Users | Peak RPS |
+|----------|----------------|------------------|----------|
+| **Low** | 100K | 10-50 | 5 |
+| **Medium** | 1M | 100-500 | 50 |
+| **High** | 10M | 1K-5K | 500 |
+
+### AWS-Native Architecture Costs
 
 | Component | Low Traffic | Medium Traffic | High Traffic |
 |-----------|-------------|----------------|--------------|
 | **Lambda Invocations** | $0.20 | $2.00 | $20.00 |
 | **Lambda Duration** (1GB, 500ms avg) | $0.83 | $8.33 | $83.33 |
+| **API Gateway** | $0.35 | $3.50 | $35.00 |
+| **AWS Cognito** | $0.00 | $5.50 | $55.00 |
+| **AWS Bedrock** (Claude Instant) | $15.00 | $150.00 | $1,500.00 |
+| **DynamoDB** (On-Demand) | $2.50 | $12.50 | $62.50 |
+| **S3** (Config storage) | $0.25 | $0.50 | $2.50 |
+| **CloudWatch Logs** | $0.50 | $2.50 | $12.50 |
+| **X-Ray Tracing** | $0.50 | $5.00 | $50.00 |
+| **Data Transfer** | $0.90 | $4.50 | $22.50 |
+| **Total Monthly Cost** | **$21.03** | **$194.33** | **$1,843.33** |
+
+### Cloud-Agnostic Architecture Costs
+
+| Component | Low Traffic | Medium Traffic | High Traffic |
+|-----------|-------------|----------------|--------------|
+| **Lambda Invocations** | $0.20 | $2.00 | $20.00 |
+| **Lambda Duration** (1GB, 500ms avg) | $0.83 | $8.33 | $83.33 |
+| **Function URLs** (Free) | $0.00 | $0.00 | $0.00 |
+| **Cloudflare Free** | $0.00 | $0.00 | $0.00 |
 | **AWS Bedrock** (Claude Instant) | $15.00 | $150.00 | $1,500.00 |
 | **External PostgreSQL** (managed) | $25.00 | $100.00 | $400.00 |
 | **External Redis** (managed) | $15.00 | $60.00 | $240.00 |
-| **Cloudflare Free** | $0.00 | $0.00 | $0.00 |
+| **CloudWatch Logs** | $0.50 | $2.50 | $12.50 |
 | **Monitoring Stack** | $0.00 | $25.00 | $100.00 |
 | **Data Transfer** | $0.90 | $5.40 | $27.00 |
-| **Total Monthly Cost** | **$56.93** | **$350.73** | **$2,370.33** |
+| **Total Monthly Cost** | **$57.43** | **$353.23** | **$2,382.83** |
 
-**Key Benefits:**
-- No API Gateway costs (uses Function URLs)
-- No VPC or networking charges
-- Cloudflare free tier includes CDN, SSL, and basic DDoS protection
-- External services provide more flexibility and often better pricing
+### Cost Comparison Summary
+
+| Traffic Level | AWS-Native | Cloud-Agnostic | Difference |
+|---------------|------------|----------------|------------|
+| **Low** | $21.03 | $57.43 | +$36.40 (+173%) |
+| **Medium** | $194.33 | $353.23 | +$158.90 (+82%) |
+| **High** | $1,843.33 | $2,382.83 | +$539.50 (+29%) |
+
+**Key Insights:**
+- AWS-Native is significantly cheaper at low traffic volumes
+- Cost difference decreases as traffic increases  
+- Cloud-agnostic provides more control but at higher base cost
+- Both architectures scale cost-effectively with traffic
+- Cloud-agnostic eliminates vendor lock-in and provides operational flexibility
+
+**Cloud-Agnostic Benefits Despite Higher Cost:**
+- No vendor lock-in - can switch providers easily
+- Full control over database and caching infrastructure
+- Better performance with dedicated external services
+- Simplified architecture without VPC complexity
+- Cloudflare free tier includes enterprise-grade CDN and security
+- More predictable pricing with external managed services
 
 ## Local Development Environment
 
