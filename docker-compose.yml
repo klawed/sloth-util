@@ -1,33 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL for cloud-agnostic architecture
-  postgres:
-    image: postgres:15-alpine
-    container_name: sloth-util-postgres
-    environment:
-      POSTGRES_DB: slothutil
-      POSTGRES_USER: slothutil
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./tools/db/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - sloth-util-network
-
-  # Redis for caching
-  redis:
-    image: redis:7-alpine
-    container_name: sloth-util-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - sloth-util-network
-
   # DynamoDB Local for AWS services simulation
   dynamodb-local:
     image: amazon/dynamodb-local:latest
@@ -53,10 +26,22 @@ services:
     networks:
       - sloth-util-network
 
+  # Miniflare for local Cloudflare Workers/D1/KV simulation (optional)
+  miniflare:
+    image: node:18-alpine
+    container_name: sloth-util-miniflare
+    working_dir: /app
+    command: sh -c "npm install -g miniflare@3 && miniflare --kv QUOTES --d1 DB"
+    ports:
+      - "8787:8787"
+    volumes:
+      - miniflare_data:/app/data
+    networks:
+      - sloth-util-network
+
 volumes:
-  postgres_data:
-  redis_data:
   localstack_data:
+  miniflare_data:
 
 networks:
   sloth-util-network:
