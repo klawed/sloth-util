@@ -98,11 +98,6 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>redis</artifactId> <!-- Use appropriate Testcontainer for Redis -->
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>

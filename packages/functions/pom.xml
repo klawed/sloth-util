@@ -82,7 +82,12 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
+            <dependency>
+                <groupId>com.redis</groupId>
+                <artifactId>testcontainers-redis</artifactId>
+                <version>2.2.2</version>
+                <scope>test</scope>
+            </dependency>
             <!-- AWS Lambda -->
             <dependency>
                 <groupId>com.amazonaws</groupId>
@@ -212,7 +217,15 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
-                        <!-- Version and executions are inherited from pluginManagement -->
+                        <version>3.5.3</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
                     </plugin>
                 </plugins>
             </build>
