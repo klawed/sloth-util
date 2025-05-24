@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for cloud-agnostic architecture
+  postgres:
+    image: postgres:15-alpine
+    container_name: sloth-util-postgres
+    environment:
+      POSTGRES_DB: slothutil
+      POSTGRES_USER: slothutil
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./tools/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sloth-util-network
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: sloth-util-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sloth-util-network
+
+  # DynamoDB Local for AWS services simulation
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: sloth-util-dynamodb
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    networks:
+      - sloth-util-network
+
+  # LocalStack for AWS services simulation (optional)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: sloth-util-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=lambda,s3,iam,logs
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - localstack_data:/tmp/localstack
+    networks:
+      - sloth-util-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  localstack_data:
+
+networks:
+  sloth-util-network:
+    driver: bridge

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/packages/functions/auth-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/auth-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/common/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/jwks-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/jwks-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/quote-generator/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/packages/functions/src/main/resources" charset="UTF-8" />
+  </component>
+</project>
